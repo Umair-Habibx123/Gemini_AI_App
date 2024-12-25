@@ -1,6 +1,6 @@
 # Gemini_AI_App
 
-**Gemini_AI_App** is a Flutter-based mobile application that allows users to send text and image prompts to an AI, receiving creative and contextually relevant responses. The app leverages advanced AI models to generate text-based answers and image responses based on user input.
+**Gemini_AI_App** is a Flutter-based mobile application that allows users to send text and image prompts to an AI, receiving creative and contextually relevant responses. The app leverages advanced AI models to generate text-based answers and image responses based on user input. Download APK [APK](https://github.com/Umair-Habibx123/Gemini_AI_App/raw/main/APK/app-release.apk)
 
 ---
 
