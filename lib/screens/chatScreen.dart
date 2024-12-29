@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:gemini_ai_app/DB/SQLiteHelper.dart';
@@ -78,6 +77,17 @@ class _ChatScreenState extends State<ChatScreen> {
     return chatIdInserted;
   }
 
+  Future<void> _createNewChatByDrawer() async {
+    // Reset current chat ID and clear messages
+    setState(() {
+      _currentChatId = null;
+      _messages.clear();
+    });
+
+    // Optionally reload messages (if required for UI refresh)
+    await _loadMessages(_currentChatId ?? 0);
+  }
+
 // Helper function to generate a random string
   String _generateRandomString(int length) {
     const _chars =
@@ -127,10 +137,18 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final message = _controller.text.trim();
+      // Start by preparing the chat ID
       int chatId = _currentChatId ?? await _createNewChat();
 
-      // Save user message to the database
+      // First, generate the AI response
+      final response = await generateContent(message, _images);
+
+      // Check if the response is valid
+      if (response.isEmpty) {
+        throw Exception('Failed to generate AI response.');
+      }
+
+      // Save user message and images to the database only after AI response is generated
       if (message.isNotEmpty) {
         await ChatDatabaseHelper.instance.insertMessage({
           'chat_id': chatId,
@@ -149,9 +167,6 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
 
-      // Fetch AI-generated response
-      final response = await generateContent(message, _images);
-
       // Save AI response to the database
       await ChatDatabaseHelper.instance.insertMessage({
         'chat_id': chatId,
@@ -160,6 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'created_at': DateTime.now().toString(),
       });
 
+      // Update the UI with the new messages
       setState(() {
         if (message.isNotEmpty) {
           _messages.add({'text': message, 'type': 'text'});
@@ -175,13 +191,82 @@ class _ChatScreenState extends State<ChatScreen> {
       _showSnackBar('Message sent successfully 😍', Colors.green);
     } catch (e) {
       _showSnackBar(
-          'Failed to send message. Please try again later 😢', Colors.red);
+          'Failed to generate content. "Server error" or "Internet error" occurred!!!  😢',
+          Colors.red);
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
   }
+
+  // Future<void> _sendMessage() async {
+  //   final message = _controller.text.trim();
+  //   if (message.isEmpty && _images.isEmpty) {
+  //     _showDialog('Please enter a message or select an image.');
+  //     return;
+  //   }
+
+  //   setState(() {
+  //     _isLoading = true;
+  //   });
+
+  //   try {
+  //     final message = _controller.text.trim();
+  //     int chatId = _currentChatId ?? await _createNewChat();
+
+  //     // Save user message to the database
+  //     if (message.isNotEmpty) {
+  //       await ChatDatabaseHelper.instance.insertMessage({
+  //         'chat_id': chatId,
+  //         'text': message,
+  //         'type': 'text',
+  //         'created_at': DateTime.now().toString(),
+  //       });
+  //     }
+
+  //     for (var image in _images) {
+  //       await ChatDatabaseHelper.instance.insertMessage({
+  //         'chat_id': chatId,
+  //         'text': image.path,
+  //         'type': 'image',
+  //         'created_at': DateTime.now().toString(),
+  //       });
+  //     }
+
+  //     // Fetch AI-generated response
+  //     final response = await generateContent(message, _images);
+
+  //     // Save AI response to the database
+  //     await ChatDatabaseHelper.instance.insertMessage({
+  //       'chat_id': chatId,
+  //       'text': response,
+  //       'type': 'response',
+  //       'created_at': DateTime.now().toString(),
+  //     });
+
+  //     setState(() {
+  //       if (message.isNotEmpty) {
+  //         _messages.add({'text': message, 'type': 'text'});
+  //       }
+  //       for (var image in _images) {
+  //         _messages.add({'text': image.path, 'type': 'image'});
+  //       }
+  //       _messages.add({'text': response, 'type': 'response'});
+  //       _controller.clear();
+  //       _images.clear();
+  //     });
+
+  //     _showSnackBar('Message sent successfully 😍', Colors.green);
+  //   } catch (e) {
+  //     _showSnackBar(
+  //         'Failed to send message. Please try again later 😢', Colors.red);
+  //   } finally {
+  //     setState(() {
+  //       _isLoading = false;
+  //     });
+  //   }
+  // }
 
   Future<List<Map<String, dynamic>>> _fetchChats() async {
     final chats = await ChatDatabaseHelper.instance.getChats();
@@ -216,10 +301,10 @@ class _ChatScreenState extends State<ChatScreen> {
       return response.text!;
     } else {
       _showSnackBar(
-          'Failed to generate content. Server error or Internet error occurred!!! Try again later  😢',
+          'Failed to generate content. "Server error" or "Internet error" occurred!!! Try again later  😢',
           Colors.red);
       throw Exception(
-          'Failed to generate content. Server error or Internet error occurred!!! Try again later  😢');
+          'Failed to generate content. "Server error" or "Internet error" occurred!!! Try again later  😢');
     }
   }
 
@@ -257,7 +342,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 // Close the drawer
                 Navigator.pop(context);
                 // Perform the action for creating a new chat
-                _createNewChat();
+                _createNewChatByDrawer();
               },
             ),
             Expanded(
